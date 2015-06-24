@@ -1,0 +1,207 @@
+<html>
+  <head>
+    <meta name="name" content="content" charset="UTF-8">
+    <title></title>
+  </head>
+  <style media="screen">
+    .button  {
+      width : 100px;
+    }
+    .room{
+      border : solid 1px;
+      text-align : center;
+      margin : 10px;
+      padding : 5px;
+      float : left;
+    }
+    #show-room-div table td{
+      border : solid 1px;
+    }
+    #messanger {
+      width : 275px;
+      height : 410px;
+      border : solid 1px;
+      float : left;
+    }
+    #sending-message {
+      margin: 3px;
+      border : solid 1px;
+      width : 267px;
+    }
+    #sending-message input{
+      height : 20px;
+    }
+    #send-message {
+      width : 50px;
+    }
+    #show-message{
+      width : 267px;
+      height : 370px;
+      border : solid 1px;
+      margin : 3px;
+
+    }
+    #message{
+      width : 200px;
+      margin : 3px;
+    }
+    #online-users{
+      padding-left : 285px;
+    }
+    #leave-room-div {
+      padding : 5px;
+    }
+    #leave-room-div input {
+      width : 267px;
+      height : 25px;
+    }
+  </style>
+    <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+  <body>
+    <div id="content">
+      <div id="user-creation-div">
+        <table>
+          <tr>
+            <td>
+              User name :
+            </td>
+            <td>
+              <input type="text" id="userName">
+            </td>
+            <td>
+              <input type="button" id="create-user" class="button" value="OK">
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div id="room-create-show-div" style="display : none;">
+        <table>
+          <tr>
+            <td>
+              Room name :
+            </td>
+            <td>
+              <input type="text" id="roomName">
+            </td>
+            <td>
+              <input type="button" id="create-room" class="button" value="Create Room">
+            </td>
+          </tr>
+        </table>
+        <div id="show-room-div">
+        </div>
+      </div>
+      <div id="leave-room-div" style="display : none;">
+        <input type="button" id="leave-room" value="Leave Room">
+      </div>
+      <div id="messanger" style="display : none;">
+        <div id="show-message">
+
+        </div>
+        <div id="sending-message">
+          <input type="text" id="message">
+          <input type="button" id="send-message" value="Send">
+        </div>
+      </div>
+      <div id="online-users" style="display : none;">
+        <b> Online Users </b>
+        <ul>
+        </ul>
+      </div>
+    </div>
+    <script>
+      $(document).ready(function(){
+        var socket = io.connect();
+        $("#create-user").on("click", function(){
+          socket.emit("create-user", $("#userName").val(), function(callback){
+            if (callback){
+              $("#user-creation-div").hide();
+              $("#room-create-show-div").show();
+            }
+          })
+        })
+        socket.on("rooms", function(rooms){
+          showRooms(rooms)
+        })
+        $("#create-room").on("click", function(){
+          socket.emit("create-room", $("#roomName").val(), function(callback){
+            if (callback){
+              $("#room-create-show-div").hide();
+              $("#messanger").show();
+              $("#online-users").show();
+              $("#leave-room-div").show();
+              $("#show-message").text("");
+            }
+          })
+        });
+        $("#show-room-div").on("click", "a.room-link",function(event){
+          event.preventDefault();
+          var $a = $(this);
+          var roomID = $a.data("roomID");
+          socket.emit("join-room", roomID, function(callback){
+            if (callback == true) {
+              $("#room-create-show-div").hide();
+              $("#messanger").show();
+              $("#online-users").show();
+              $("#leave-room-div").show();
+              $("#show-message").text("");
+            }else{
+              $($a + " div").append(callback);
+            }
+          });
+        })
+        socket.on("new-user", function(newUser){
+          $("#show-message").append(newUser.userName + " joined the room<br>")
+        })
+        $("#send-message").on("click", function(){
+          var $message = $("#message");
+          socket.emit("message", $message.val());
+          $message.val("");
+        })
+        $("#leave-room").on("click", function(){
+          socket.emit("leave-room",function(callback){
+            if (callback){
+              $("#leave-room-div").hide();
+              $("#messanger").hide();
+              $("#online-users").hide()
+              $("#room-create-show-div").show();
+            }
+          })
+        })
+        socket.on("left-message", function(data){
+          $("#show-message").append(data);
+        })
+        socket.on("new-message", function(newMessage){
+          $("#show-message").append("<b>" + newMessage.userName + "</b> : " + newMessage.data + "<br>");
+        })
+        socket.on("room-members", function(roomMembers){
+          showRoomMembers(roomMembers)
+        })
+        function showRoomMembers(roomMembers){
+          console.log(roomMembers)
+          var $ul = $("#online-users ul");
+          $ul.text("");
+          roomMembers.forEach(function(roomMember){
+            $ul.append("<li>" + roomMember.userName + "</li>")
+          })
+        }
+        function showRooms(rooms){
+          var $showRoomdiv = $("#show-room-div");
+          $showRoomdiv.text("")
+          rooms.forEach(function(room){
+            var $a = $("<a href='#'>")
+            $a.addClass("room-link")
+            $a.data("roomID",room.roomID);
+            var $table = ("<div class='room'><table><tr><td><b>Room name</b></td><td>" +
+                                  room.roomName + "</td></tr><tr><td><b>Room limit</b></td><td>" +
+                                  room.roomLimit + "</td></tr><tr><td><b>Room owner</b></td><td>" +
+                                  room.owner.userName + "</td></td></tr></table></div>");
+            $a.append($table);
+            $showRoomdiv.append($a);
+          });
+        }
+      })
+    </script>
+  </body>
+</html>
