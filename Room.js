@@ -4,7 +4,7 @@ function Room(roomName, roomID, owner){
   this.owner = owner;
   this.members = [];
 }
-Room.prototype.roomLimit = 1;
+Room.prototype.roomLimit = 4;
 Room.prototype.addUser = function(user){
   if (this.roomLimit == 0){
     return "Room is full";
@@ -22,5 +22,8 @@ Room.prototype.removeUser = function(userID){
     }
   }
   this.roomLimit++;
+}
+Room.prototype.changeOwner = function(user){
+  this.owner = user;
 }
 module.exports = Room;
