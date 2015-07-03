@@ -2,62 +2,71 @@
   <head>
     <meta name="name" content="content" charset="UTF-8">
     <title></title>
-  </head>
-  <style media="screen">
-    .button  {
-      width : 100px;
-    }
-    .room{
-      border : solid 1px;
-      text-align : center;
-      margin : 10px;
-      padding : 5px;
-      float : left;
-    }
-    #show-room-div table td{
-      border : solid 1px;
-    }
-    #messanger {
-      width : 275px;
-      height : 410px;
-      border : solid 1px;
-      float : left;
-    }
-    #sending-message {
-      margin: 3px;
-      border : solid 1px;
-      width : 267px;
-    }
-    #sending-message input{
-      height : 20px;
-    }
-    #send-message {
-      width : 50px;
-    }
-    #show-message{
-      width : 267px;
-      height : 370px;
-      border : solid 1px;
-      margin : 3px;
-
-    }
-    #message{
-      width : 200px;
-      margin : 3px;
-    }
-    #online-users{
-      padding-left : 285px;
-    }
-    #leave-room-div {
-      padding : 5px;
-    }
-    #leave-room-div input {
-      width : 267px;
-      height : 25px;
-    }
-  </style>
     <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
     <script src="/socket.io/socket.io.js"></script>
+    <style media="screen">
+      .button  {
+        width : 100px;
+      }
+      .room{
+        border : solid 1px;
+        text-align : center;
+        margin : 10px;
+        padding : 5px;
+        float : left;
+      }
+      #show-room-div table td{
+        border : solid 1px;
+      }
+      #messanger {
+        width : 275px;
+        height : 410px;
+        border : solid 1px;
+        float : left;
+        background-color : #8E7D7D;
+      }
+      #sending-message {
+        margin: 3px;
+        border : solid 1px;
+        width : 267px;
+        background-color : #FFFFFF;
+      }
+      #sending-message input{
+        height : 20px;
+      }
+      #send-message {
+        width : 50px;
+      }
+      #show-message{
+        background-color : #FFFFFF;
+        width : 268px;
+        height : 350;
+        border : solid 1px;
+        margin : 3px;
+
+      }
+      #message{
+        width : 200px;
+        margin : 3px;
+      }
+      #typing{
+        margin : 3px;
+        height : 17px;
+        width : 258px;
+        padding-top : 0px;
+      }
+      #online-users{
+        padding-left : 285px;
+      }
+      #leave-room-div {
+        padding : 5px;
+      }
+      #leave-room-div input {
+        width : 267px;
+        height : 25px;
+      }
+    </style>
+  </head>
   <body>
     <div id="content">
       <div id="user-creation-div">
@@ -98,6 +107,8 @@
       <div id="messanger" style="display : none;">
         <div id="show-message">
 
+        </div>
+        <div id="typing">
         </div>
         <div id="sending-message">
           <input type="text" id="message">
@@ -154,11 +165,20 @@
         socket.on("new-user", function(newUser){
           $("#show-message").append(newUser.userName + " joined the room<br>")
         })
+        $("#message").on("input", function(){
+          socket.emit("typing", {message : $("#message").val()});
+        })
+        socket.on("non-typing", function(){
+          $("#typing").text("");
+        })
+        socket.on("someone-typing", function(data){
+          $("#typing").text(data.user.userName + " is typing");
+        })
         $("#send-message").on("click", function(){
           var $message = $("#message");
           socket.emit("message", $message.val());
           $message.val("");
-        })
+        });
         $("#leave-room").on("click", function(){
           socket.emit("leave-room",function(callback){
             if (callback){
@@ -174,6 +194,7 @@
         })
         socket.on("new-message", function(newMessage){
           $("#show-message").append("<b>" + newMessage.userName + "</b> : " + newMessage.data + "<br>");
+          $("#typing").text("");
         })
         socket.on("room-members", function(roomMembers){
           showRoomMembers(roomMembers)
