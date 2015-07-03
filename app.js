@@ -10,7 +10,7 @@ var rooms = [];
 var userID = 1;
 var roomID = 1;
 var resultRoom;
-var port = 4070 ;
+var port = 8050 ;
 server.listen(port);
 console.log("Server is running at", port);
 app.use(express.static('public'));
@@ -18,6 +18,7 @@ app.get("/", function(req, res){
   res.sendfile(__dirname + "/index.html");
 });
 io.sockets.on("connection", function(socket){
+  socket.typing = false;
   socket.on("create-user", function(userName, callback){
     var user = new User(userName, userID++, socket.id);
     users[socket.id] = user;
@@ -50,11 +51,24 @@ io.sockets.on("connection", function(socket){
     }
   })
   socket.on("message", function(message){
+    socket.typing = false;
     console.log(socket.roomID)
     io.sockets.in(socket.roomID).emit("new-message", {userName : users[socket.id].userName, data : message});
   })
-  socket.on("typing", function(){
-    socket.broadcast.to(socket.roomID).emit("some-typing", users[socket.id]);
+  socket.on("typing", function(message, callback){
+    if (message.message != ""){
+      console.log(message);
+      if (socket.typing == false) {
+        console.log("typing");
+        socket.typing = true;
+        socket.broadcast.to(socket.roomID).emit("someone-typing",{user : users[socket.id]});
+      }
+    }else{
+      console.log("message");
+      socket.broadcast.to(socket.roomID).emit("non-typing");
+      socket.typing = false;
+    }
+
   })
   socket.on("leave-room", function(callback){
     leaveRoom(socket);
@@ -62,21 +76,25 @@ io.sockets.on("connection", function(socket){
     callback(true);
   })
   function leaveRoom(){
-    socket.leave(socket.roomID);
-    var resultRoom = findRoom(socket.roomID)
-    if (users[socket.id].userID == resultRoom.owner.userID){
-      resultRoom.removeUser(users[socket.id].userID);
-      if (resultRoom.members.length > 0) resultRoom.changeOwner(resultRoom.members[0]);
-      else{
-        removeRoom(resultRoom);
-        console.log(rooms);
-      }
+    if (socket.roomID == undefined){
+      return
     }else{
-      resultRoom.removeUser(users[socket.id].userID);
+      socket.leave(socket.roomID);
+      var resultRoom = findRoom(socket.roomID);
+      if (users[socket.id].userID == resultRoom.owner.userID){
+        resultRoom.removeUser(users[socket.id].userID);
+        if (resultRoom.members.length > 0) resultRoom.changeOwner(resultRoom.members[0]);
+        else{
+          removeRoom(resultRoom);
+          socket.roomID = undefined;
+        }
+      }else{
+        resultRoom.removeUser(users[socket.id].userID);
+      }
+      console.log("owner", resultRoom.owner);
+      updateRoomMembers(resultRoom);
+      io.sockets.in(socket.roomID).emit("left-message", users[socket.id].userName + " left the room<br>");
     }
-    console.log("owner", resultRoom.owner);
-    updateRoomMembers(resultRoom);
-    io.sockets.in(socket.roomID).emit("left-message", users[socket.id].userName + " left the room<br>");
   }
   function findRoom(roomID){
     for(var index in rooms){
